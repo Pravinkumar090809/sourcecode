@@ -7,17 +7,34 @@ import { generateToken } from "../lib/utils.js";
 
 export async function register(req, res) {
   try {
-    const { email, password, full_name } = req.body;
+    const { email, password, full_name, role } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, error: "Email and password are required" });
     }
+
+    // determine which roles are permitted at signup (environment can add more)
+    const allowedRoles = (process.env.ALLOWED_SIGNUP_ROLES || "customer").split(",").map((r) => r.trim());
+
+    let signupRole = "customer"; // default
+    if (role) {
+      if (role === "admin" || !allowedRoles.includes(role)) {
+        return res.status(400).json({ success: false, error: "Invalid role" });
+      }
+      signupRole = role;
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return res.status(400).json({ success: false, error: "User already registered" });
     }
     const hashed = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { email, password: hashed, full_name: full_name || email.split("@")[0], role: "customer" },
+      data: {
+        email,
+        password: hashed,
+        full_name: full_name || email.split("@")[0],
+        role: signupRole,
+      },
     });
     const access_token = generateToken(user);
     return res.status(201).json({
@@ -26,7 +43,8 @@ export async function register(req, res) {
     });
   } catch (err) {
     console.error("Register error:", err.message);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+    const errMsg = process.env.NODE_ENV === "production" ? "Internal server error" : err.message;
+    return res.status(500).json({ success: false, error: errMsg });
   }
 }
 
@@ -50,7 +68,8 @@ export async function login(req, res) {
     });
   } catch (err) {
     console.error("Login error:", err.message);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+    const errMsg = process.env.NODE_ENV === "production" ? "Internal server error" : err.message;
+    return res.status(500).json({ success: false, error: errMsg });
   }
 }
 
