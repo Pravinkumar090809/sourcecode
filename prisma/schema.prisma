@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════════════════
-//  CODEVAULT — Prisma Schema (Supabase PostgreSQL)
-//  Matches existing Supabase table structures
+//  CODEVAULT — Prisma Schema (Supabase SAFE)
+//  IMPORTANT:
+//  - Supabase Auth tables (auth.*) are NOT touched
+//  - All app tables live in schema: app
+//  - Uses prisma db push (NO migrate)
 // ═══════════════════════════════════════════════════════
 
 generator client {
@@ -10,27 +13,39 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["app"]
 }
 
-// New table — our own auth (separate from Supabase Auth "profiles")
+// ─────────────────────────────────────────────
+// USERS (CUSTOM APP USERS — NOT supabase auth.users)
+// Store Supabase auth user id as string only (NO FK)
+// ─────────────────────────────────────────────
 model User {
-  id         String   @id @default(uuid())
-  email      String   @unique
-  password   String
-  full_name  String?
-  phone      String?  @default("")
-  avatar_url String?  @default("")
-  bio        String?  @default("")
-  role       String   @default("customer")
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  full_name         String?
+  phone             String?  @default("")
+  avatar_url        String?  @default("")
+  bio               String?  @default("")
+  role              String   @default("customer")
 
-  orders  Order[]
-  reviews Review[]
+  // if you use Supabase Auth, store auth.users.id here (string only)
+  supabase_user_id  String?
+
+  created_at        DateTime @default(now())
+  updated_at        DateTime @default(now()) @updatedAt
+
+  orders            Order[]
+  reviews           Review[]
 
   @@map("users")
+  @@schema("app")
 }
 
+// ─────────────────────────────────────────────
+// PRODUCTS
+// ─────────────────────────────────────────────
 model Product {
   id                Int      @id @default(autoincrement())
   slug              String   @unique
@@ -51,34 +66,46 @@ model Product {
   features          String[] @default([])
   demo_url          String?  @default("")
   is_active         Boolean  @default(true)
+
   created_at        DateTime @default(now())
   updated_at        DateTime @default(now()) @updatedAt
 
-  orders  Order[]
-  reviews Review[]
+  orders            Order[]
+  reviews           Review[]
 
   @@map("products")
+  @@schema("app")
 }
 
+// ─────────────────────────────────────────────
+// ORDERS
+// ─────────────────────────────────────────────
 model Order {
   id             String   @id @default(uuid())
   order_number   String   @unique
+
   user_id        String?
   product_id     Int?
+
   product_name   String
   amount         Int      @default(0)
   status         String   @default("pending")
   payment_method String?  @default("card")
   payment_id     String?  @default("")
+
   created_at     DateTime @default(now())
   updated_at     DateTime @default(now()) @updatedAt
 
-  user    User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
-  product Product? @relation(fields: [product_id], references: [id], onDelete: SetNull)
+  user           User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  product        Product? @relation(fields: [product_id], references: [id], onDelete: SetNull)
 
   @@map("orders")
+  @@schema("app")
 }
 
+// ─────────────────────────────────────────────
+// CONTACT MESSAGES
+// ─────────────────────────────────────────────
 model ContactMessage {
   id         Int      @id @default(autoincrement())
   name       String
@@ -89,8 +116,12 @@ model ContactMessage {
   created_at DateTime @default(now())
 
   @@map("contact_messages")
+  @@schema("app")
 }
 
+// ─────────────────────────────────────────────
+// REVIEWS
+// ─────────────────────────────────────────────
 model Review {
   id         Int      @id @default(autoincrement())
   user_id    String?
@@ -99,8 +130,9 @@ model Review {
   comment    String?  @default("")
   created_at DateTime @default(now())
 
-  user    User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
-  product Product? @relation(fields: [product_id], references: [id], onDelete: SetNull)
+  user       User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  product    Product? @relation(fields: [product_id], references: [id], onDelete: SetNull)
 
   @@map("reviews")
+  @@schema("app")
 }
