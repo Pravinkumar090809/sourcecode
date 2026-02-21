@@ -2,8 +2,11 @@
 //  CODEVAULT — Prisma Schema (Supabase SAFE)
 //  IMPORTANT:
 //  - Supabase Auth tables (auth.*) are NOT touched
-//  - All app tables live in schema: app
+//  - All app tables live in public schema
 //  - Uses prisma db push (NO migrate)
+//  - directUrl = direct Supabase connection (port 5432)
+//    used by Prisma for db push / migrations
+//  - url = pooler connection (port 6543) used at runtime
 // ═══════════════════════════════════════════════════════
 
 generator client {
@@ -11,9 +14,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  schemas  = ["app"]
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─────────────────────────────────────────────
@@ -40,7 +43,6 @@ model User {
   reviews           Review[]
 
   @@map("users")
-  @@schema("app")
 }
 
 // ─────────────────────────────────────────────
@@ -74,7 +76,6 @@ model Product {
   reviews           Review[]
 
   @@map("products")
-  @@schema("app")
 }
 
 // ─────────────────────────────────────────────
@@ -100,7 +101,6 @@ model Order {
   product        Product? @relation(fields: [product_id], references: [id], onDelete: SetNull)
 
   @@map("orders")
-  @@schema("app")
 }
 
 // ─────────────────────────────────────────────
@@ -116,7 +116,6 @@ model ContactMessage {
   created_at DateTime @default(now())
 
   @@map("contact_messages")
-  @@schema("app")
 }
 
 // ─────────────────────────────────────────────
@@ -134,5 +133,4 @@ model Review {
   product    Product? @relation(fields: [product_id], references: [id], onDelete: SetNull)
 
   @@map("reviews")
-  @@schema("app")
 }
