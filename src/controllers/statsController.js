@@ -15,6 +15,6 @@ export async function getStats(req, res) {
     return res.json({ success: true, data: { totalUsers, totalProducts, totalOrders, totalRevenue } });
   } catch (err) {
     console.error("Admin stats error:", err.message);
-    return res.status(500).json({ success: false, error: "Internal server error" });
+    return res.status(500).json({ success: false, error: err.message });
   }
 }

@@ -30,7 +30,7 @@ process.on("unhandledRejection", (reason) => {
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcryptjs";
-import prisma from "./src/config/db.js";
+import prisma, { testConnection } from "./src/config/db.js";
 
 // Validate env vars
 if (!process.env.DATABASE_URL) {
@@ -83,46 +83,44 @@ app.use("/api/admin", statsRoutes);
 // EXPORT APP (for combined server)
 export { app };
 
-// START SERVER (only when run directly)
-const currentFile = fileURLToPath(import.meta.url);
-const isDirectRun =
-  process.argv[1] &&
-  process.argv[1].endsWith("index.js") &&
-  currentFile.endsWith(process.argv[1].replace(/.*backend/, "backend"));
-
-async function ensureAdminUser() {
-  // create a default admin if none exists; values can be overridden with
-  // environment variables for flexibility.
+/**
+ * Ensure a default admin user exists in the database.
+ * Waits for DB connectivity before attempting the insert.
+ */
+export async function ensureAdminUser() {
   const email = process.env.DEFAULT_ADMIN_EMAIL || "pravinbairwa584@gmail.com";
   const password = process.env.DEFAULT_ADMIN_PASSWORD || "Pravin1122@";
   const fullName = process.env.DEFAULT_ADMIN_NAME || "Pravin Bairwa";
   const phone = process.env.DEFAULT_ADMIN_PHONE || "9783761084";
+
+  // wait for DB to be reachable
+  const connected = await testConnection(5, 3000);
+  if (!connected) {
+    console.error("[init] ❌ Skipping admin seed — database unreachable");
+    return;
+  }
 
   try {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (!existing) {
       const hashed = await bcrypt.hash(password, 10);
       await prisma.user.create({
-        data: {
-          email,
-          password: hashed,
-          full_name: fullName,
-          phone,
-          role: "admin",
-        },
+        data: { email, password: hashed, full_name: fullName, phone, role: "admin" },
       });
-      console.log("[init] default admin user created:", email);
+      console.log("[init] ✅ Default admin created:", email);
+    } else if (existing.role !== "admin") {
+      await prisma.user.update({ where: { email }, data: { role: "admin" } });
+      console.log("[init] ✅ Existing user promoted to admin:", email);
     } else {
-      // update role if somehow changed
-      if (existing.role !== "admin") {
-        await prisma.user.update({ where: { email }, data: { role: "admin" } });
-        console.log("[init] existing user role updated to admin for", email);
-      }
+      console.log("[init] ✅ Admin already exists:", email);
     }
   } catch (err) {
-    console.error("[init] failed to ensure admin user:", err);
+    console.error("[init] ❌ Failed to ensure admin user:", err.message);
   }
 }
+
+// START SERVER (only when run directly, NOT when imported by server.mjs)
+const isDirectRun = !process.argv[1] || process.argv[1].endsWith("index.js");
 
 if (isDirectRun) {
   const PORT = process.env.PORT || 5000;
@@ -130,7 +128,5 @@ if (isDirectRun) {
     console.log("Codevault API v3.0 running on http://localhost:" + PORT);
     console.log("PostgreSQL + Prisma + JWT");
   });
-
-  // create admin asynchronously (don't block listen)
   ensureAdminUser();
 }

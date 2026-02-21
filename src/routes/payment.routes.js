@@ -11,6 +11,6 @@ const router = Router();
 
 router.post("/create-order", authenticate, createPaymentOrder);
 router.post("/verify", authenticate, verifyPayment);
-router.get("/status/:orderId", getPaymentStatus);
+router.get("/status/:orderId", authenticate, getPaymentStatus);
 
 export default router;

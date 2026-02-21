@@ -5,7 +5,7 @@ import prisma from "../config/db.js";
 
 export async function submitContact(req, res) {
   try {
-    const { name, email, phone, subject, message } = req.body;
+    const { name, email, subject, message } = req.body;
     if (!name || !email || !message) {
       return res.status(400).json({ success: false, error: "Name, email, and message are required" });
     }

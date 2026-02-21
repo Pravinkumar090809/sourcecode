@@ -78,8 +78,15 @@ export async function createProduct(req, res) {
 export async function updateProduct(req, res) {
   try {
     const { slugOrId } = req.params;
-    const updates = { ...req.body };
-    delete updates.id; delete updates.created_at;
+    const allowedFields = [
+      "slug","name","description","short_description","price","original_price",
+      "category_id","category","tags","image_url","rating","reviews_count",
+      "downloads","featured","tech_stack","features","demo_url","is_active",
+    ];
+    const updates = {};
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
     if (updates.price !== undefined) updates.price = parseInt(updates.price);
     if (updates.original_price !== undefined) updates.original_price = parseInt(updates.original_price);
 
